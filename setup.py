@@ -1,12 +1,8 @@
 import sys
 import os
 
-from distutils.core import setup
+from setuptools import setup
 from distutils.sysconfig import get_python_lib
-
-ENTRY_POINTS = [
-    'this = autowrapt_demos:autowrapt_this',
-]
 
 setup_kwargs = dict(
     name = 'autowrapt',
@@ -16,9 +12,11 @@ setup_kwargs = dict(
     author_email = 'Graham.Dumpleton@gmail.com',
     license = 'BSD',
     url = 'https://github.com/GrahamDumpleton/autowrapt',
-    py_modules = ['autowrapt', 'autowrapt_demos'],
+    packages = ['autowrapt'],
+    package_dir = {'autowrapt': 'src'},
     data_files = [(get_python_lib(prefix=''), ['autowrapt-init.pth'])],
-    entry_points = {'autowrapt_demos': ENTRY_POINTS},
+    entry_points = {'autowrapt.examples':
+            ['this = autowrapt.examples:autowrapt_this']},
     install_requires = ['wrapt>=1.10.4'],
 )
 
