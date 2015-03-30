@@ -50,5 +50,5 @@ def bootstrap():
     # disabled and in that case do what we need to after 'sitecustomize'
     # is loaded.
 
-    wrapt_function_wrapper(site, 'execsitecustomize', _execsitecustomize)
-    wrapt_function_wrapper(site, 'execusercustomize', _execusercustomize)
+    wrap_function_wrapper(site, 'execsitecustomize', _execsitecustomize)
+    wrap_function_wrapper(site, 'execusercustomize', _execusercustomize)
