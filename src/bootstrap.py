@@ -1,8 +1,6 @@
 import os
 import site
 
-from wrapt import wrap_function_wrapper, discover_post_import_hooks
-
 _registered = False
 
 def _register_bootstrap_functions():
@@ -19,25 +17,34 @@ def _register_bootstrap_functions():
     # Now discover and register all post import hooks named in the
     # AUTOWRAPT_BOOTSTRAP environment variable. The value of the
     # environment variable must be a comma separated list.
+    #
+    # It should be safe to import wrapt at this point as this code
+    # ill be executed after all module search path has been setup.
+
+    from wrapt import discover_post_import_hooks
 
     for name in os.environ.get('AUTOWRAPT_BOOTSTRAP', '').split(','):
         discover_post_import_hooks(name)
 
-def _execsitecustomize(wrapped, instance, args, kwargs):
-    try:
-        return wrapped(*args, **kwargs)
-    finally:
-        # Check whether 'usercustomize' support is actually disabled.
-        # In that case we do our work after 'sitecustomize' is loaded.
+def _execsitecustomize_wrapper(wrapped):
+    def _execsitecustomize(*args, **kwargs):
+        try:
+            return wrapped(*args, **kwargs)
+        finally:
+            # Check whether 'usercustomize' support is actually disabled.
+            # In that case we do our work after 'sitecustomize' is loaded.
 
-        if not site.ENABLE_USER_SITE:
+            if not site.ENABLE_USER_SITE:
+                _register_bootstrap_functions()
+    return _execsitecustomize
+
+def _execusercustomize_wrapper(wrapped):
+    def _execusercustomize(*args, **kwargs):
+        try:
+            return wrapped(*args, **kwargs)
+        finally:
             _register_bootstrap_functions()
-
-def _execusercustomize(wrapped, instance, args, kwargs):
-    try:
-        return wrapped(*args, **kwargs)
-    finally:
-        _register_bootstrap_functions()
+    return _execusercustomize
 
 def bootstrap():
     # We want to do our real work as the very last thing in the 'site'
@@ -49,6 +56,13 @@ def bootstrap():
     # 'usercustomize' modules but detect when 'usercustomize' support is
     # disabled and in that case do what we need to after 'sitecustomize'
     # is loaded.
+    #
+    # In wrapping these functions though, we can't actually use wrapt
+    # to do so. This is because depending on how wrapt was installed it
+    # may technically be dependent on '.pth' evaluation for Python to
+    # know where to import it from. The addition of the directory which
+    # contains wrapt may not yet have been done. We thus use a simple
+    # function wrapper instead.
 
-    wrap_function_wrapper(site, 'execsitecustomize', _execsitecustomize)
-    wrap_function_wrapper(site, 'execusercustomize', _execusercustomize)
+    site.execsitecustomize = _execsitecustomize_wrapper(site.execsitecustomize)
+    site.execusercustomize = _execusercustomize_wrapper(site.execusercustomize)
