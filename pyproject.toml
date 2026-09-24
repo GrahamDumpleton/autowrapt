@@ -1,0 +1,101 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "autowrapt"
+dynamic = ["version"]
+description = "Bootstrap mechanism for monkey patches."
+readme = "README.md"
+license = "BSD-2-Clause"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Graham Dumpleton", email = "Graham.Dumpleton@gmail.com"}
+]
+requires-python = ">=3.9"
+keywords = ["wrapt", "monkey patching", "post import hooks", "bootstrap"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+dependencies = [
+    "wrapt>=2.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/GrahamDumpleton/autowrapt"
+"Bug Tracker" = "https://github.com/GrahamDumpleton/autowrapt/issues/"
+
+# The example post import hook. With AUTOWRAPT_BOOTSTRAP=autowrapt.examples
+# set, importing the this module prints one extra line after the Zen of
+# Python. The tests rely on it.
+
+[project.entry-points."autowrapt.examples"]
+this = "autowrapt.examples:autowrapt_this"
+
+# The version is computed from __version_info__ in the same way as wrapt,
+# so it is read by running the module rather than by pattern matching.
+# The module imports nothing, so that is safe at build time.
+
+[tool.hatch.version]
+source = "code"
+path = "src/autowrapt/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/autowrapt"]
+
+# The .pth file has to land at the top of site-packages, not inside the
+# package, for the site module to process it at interpreter startup. Placing
+# it at the root of the wheel does that on any Python version and layout.
+
+[tool.hatch.build.targets.wheel.force-include]
+"autowrapt-init.pth" = "autowrapt-init.pth"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    ".github",
+    "scratch",
+]
+
+[dependency-groups]
+test = [
+    "pytest",
+]
+dev = [
+    {include-group = "test"},
+    "mypy",
+    "ruff",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+# mypy no longer accepts a 3.9 target. The ruff target below keeps the
+# code to 3.9 syntax; this is only the oldest version mypy will check as.
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src/autowrapt", "tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+]

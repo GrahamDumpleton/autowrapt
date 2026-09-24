@@ -1,51 +1,15 @@
+__pycache__/
 *.py[cod]
-
-# C extensions
-*.so
-
-# Packages
-*.egg
-*.egg-info
-dist
-build
-eggs
-parts
-bin
-var
-sdist
-develop-eggs
-.installed.cfg
-lib
-lib64
-
-man
-include
-.Python
-MANIFEST
-
-# Installer logs
-pip-log.txt
-
-# Unit test / coverage reports
+*.egg-info/
+build/
+dist/
+.venv/
+.venv-*/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
-.tox
-nosetests.xml
-
-# Translations
-*.mo
-
-# Mr Developer
-.mr.developer.cfg
-.project
-.pydevproject
-
-# Editor save files.
-.*.swp
-
-# Sphinx documentation.
-docs/_build
-
-# Coverage.
-htmlcov
-.coverage
-.tddium*
+htmlcov/
+scratch/
+.DS_Store
