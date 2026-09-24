@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/GrahamDumpleton/autowrapt/develop/assets/autowrapt-logo.svg" alt="autowrapt" width="240">
+
 # autowrapt
 
 Bootstrap mechanism for monkey patches.
