@@ -27,7 +27,7 @@ def _format_version(parts: "tuple[str, ...]") -> str:
     )
 
 
-__version_info__ = ("2", "0", "0", "rc1")
+__version_info__ = ("2", "0", "0", "rc2")
 __version__ = _format_version(__version_info__)
 
 
