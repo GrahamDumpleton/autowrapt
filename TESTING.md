@@ -10,10 +10,10 @@ separate from the package code in src/autowrapt/. Test files are named
 ## How the tests work
 
 Everything autowrapt does happens at interpreter startup, driven by the
-autowrapt-init.pth file installed at the top of site-packages. An editable
-install, which is what the project environment holds, does not exercise
-that file the way a user's install does. The tests therefore work on the
-real thing:
+autowrapt-init.start and autowrapt-init.pth files installed at the top of
+site-packages. An editable install, which is what the project environment
+holds, does not exercise those files the way a user's install does. The
+tests therefore work on the real thing:
 
 - A session scoped fixture in [tests/conftest.py](tests/conftest.py)
   builds the wheel from the working tree with `uv build`.

@@ -2,32 +2,57 @@
 by running a fresh interpreter from a virtual environment with the wheel
 installed. See conftest.py for the fixtures."""
 
+import sys
+
+import pytest
 from conftest import RunPython
 
 EXTRA_LINE = "The wrapt package is absolutely amazing and you should use it."
 ZEN_TITLE = "The Zen of Python, by Tim Peters"
 
-CHECK_PTH_FILE = """
+CHECK_STARTUP_FILES = """
 import os
 import sysconfig
 
-path = os.path.join(sysconfig.get_paths()["purelib"], "autowrapt-init.pth")
+purelib = sysconfig.get_paths()["purelib"]
 
-print(os.path.exists(path))
+for name in ("autowrapt-init.pth", "autowrapt-init.start"):
+    print(name, os.path.exists(os.path.join(purelib, name)))
 """
 
-CHECK_AUTOWRAPT_IMPORTED = """
+CHECK_MODULES_LOADED = """
 import sys
 
 import this
 
-names = [name for name in sys.modules if name.split(".")[0] == "autowrapt"]
+names = [name for name in sys.modules if name.split(".")[0] in ("autowrapt", "wrapt")]
 
-print(bool(names))
+print(sorted(names))
+"""
+
+# The package is already loaded by the startup files, so it is dropped from
+# sys.modules first to measure what importing it afresh pulls in.
+
+CHECK_INIT_IMPORTS = """
+import sys
+
+for name in list(sys.modules):
+    if name.split(".")[0] == "autowrapt":
+        del sys.modules[name]
+
+before = set(sys.modules)
+
+import autowrapt
+
+print(sorted(set(sys.modules) - before))
 """
 
 CHECK_PACKAGE_IMPORTS = """
 import sys
+
+for name in list(sys.modules):
+    if name.split(".")[0] == "autowrapt":
+        del sys.modules[name]
 
 before = set(sys.modules)
 
@@ -37,23 +62,32 @@ import autowrapt.bootstrap
 print(sorted(set(sys.modules) - before))
 """
 
-CHECK_BOOTSTRAP_IDEMPOTENT = """
+CHECK_INIT_IDEMPOTENT = """
 import site
 
+import autowrapt
 import autowrapt.bootstrap
 
 before = site.execsitecustomize
 
+autowrapt.init()
 autowrapt.bootstrap.bootstrap()
 
 print(site.execsitecustomize is before)
 """
 
+ENTRY_POINT_EXECUTED = "Executing entry point: autowrapt:init from "
+IMPORT_LINES_SUPPRESSED = "autowrapt-init.pth are suppressed due to matching "
+IMPORT_LINES_DEPRECATED = "autowrapt-init.pth are deprecated, "
 
-def test_pth_file_installed_in_site_packages(run_python: RunPython) -> None:
-    result = run_python(CHECK_PTH_FILE)
 
-    assert result.stdout.strip() == "True"
+def test_startup_files_installed_in_site_packages(run_python: RunPython) -> None:
+    result = run_python(CHECK_STARTUP_FILES)
+
+    assert result.stdout.splitlines() == [
+        "autowrapt-init.pth True",
+        "autowrapt-init.start True",
+    ]
 
 
 def test_hook_fires_when_variable_set(run_python: RunPython) -> None:
@@ -77,17 +111,20 @@ def test_hook_waits_for_the_import(run_python: RunPython) -> None:
 
 
 def test_nothing_happens_when_variable_unset(run_python: RunPython) -> None:
-    result = run_python(CHECK_AUTOWRAPT_IMPORTED)
+    # The startup files always import the package and call init(), so the
+    # package itself is loaded, but nothing beyond it.
+
+    result = run_python(CHECK_MODULES_LOADED)
 
     assert EXTRA_LINE not in result.stdout
-    assert result.stdout.splitlines()[-1] == "False"
+    assert result.stdout.splitlines()[-1] == "['autowrapt']"
 
 
 def test_nothing_happens_when_variable_empty(run_python: RunPython) -> None:
-    result = run_python(CHECK_AUTOWRAPT_IMPORTED, variable="")
+    result = run_python(CHECK_MODULES_LOADED, variable="")
 
     assert EXTRA_LINE not in result.stdout
-    assert result.stdout.splitlines()[-1] == "False"
+    assert result.stdout.splitlines()[-1] == "['autowrapt']"
 
 
 def test_multiple_groups_with_whitespace(run_python: RunPython) -> None:
@@ -108,19 +145,39 @@ def test_nothing_happens_without_site(run_python: RunPython) -> None:
 
 
 def test_package_import_is_light(run_python: RunPython) -> None:
-    # The .pth file imports the package at startup, so importing it must
-    # pull in nothing beyond its own modules. In particular wrapt is only
-    # imported once registration runs.
+    # The startup files import the package at every startup, so importing
+    # it must pull in nothing at all, and importing autowrapt.bootstrap must
+    # pull in nothing beyond itself. In particular wrapt is only imported
+    # once registration runs.
+
+    result = run_python(CHECK_INIT_IMPORTS)
+
+    assert result.stdout.strip() == "['autowrapt']"
 
     result = run_python(CHECK_PACKAGE_IMPORTS)
 
     assert result.stdout.strip() == "['autowrapt', 'autowrapt.bootstrap']"
 
 
-def test_bootstrap_is_idempotent(run_python: RunPython) -> None:
-    # bootstrap() has already run from the .pth file, so a second call must
-    # not wrap the site functions again.
+def test_init_is_idempotent(run_python: RunPython) -> None:
+    # init() has already run from the startup files, so calling it again,
+    # or calling bootstrap() directly, must not wrap the site functions
+    # again.
 
-    result = run_python(CHECK_BOOTSTRAP_IDEMPOTENT, variable="autowrapt.examples")
+    result = run_python(CHECK_INIT_IDEMPOTENT, variable="autowrapt.examples")
 
     assert result.stdout.splitlines()[-1] == "True"
+
+
+@pytest.mark.skipif(sys.version_info < (3, 15), reason="PEP 829 needs Python 3.15")
+def test_start_file_used_and_pth_line_suppressed(run_python: RunPython) -> None:
+    # On Python 3.15 and later the site module reports under -v that it
+    # executed the entry point from the .start file and suppressed the
+    # import line in the .pth file, and the hook still fires.
+
+    result = run_python("import this", variable="autowrapt.examples", options=["-v"])
+
+    assert ENTRY_POINT_EXECUTED in result.stderr
+    assert IMPORT_LINES_SUPPRESSED in result.stderr
+    assert IMPORT_LINES_DEPRECATED not in result.stderr
+    assert result.stdout.splitlines()[-1] == EXTRA_LINE

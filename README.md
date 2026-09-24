@@ -18,9 +18,10 @@ pip install autowrapt
 ```
 
 autowrapt must be installed into the same Python installation or virtual
-environment as the application it is to patch. Installing it puts a
-`autowrapt-init.pth` file at the top of site-packages, which is what
-triggers it at interpreter startup.
+environment as the application it is to patch. Installing it puts two
+startup files, `autowrapt-init.start` and `autowrapt-init.pth`, at the top
+of site-packages, which is what triggers it at interpreter startup. Which
+of them does the work depends on the Python version, as described below.
 
 ## Usage
 
@@ -63,8 +64,8 @@ AUTOWRAPT_BOOTSTRAP=mycompany.patches python app.py
 More than one group can be named, separated by commas. Every entry point in
 each group is registered as a post import hook, and each hook runs when, and
 only when, its module is first imported. A module which is never imported
-costs nothing. When the variable is not set, nothing from autowrapt is
-imported at all.
+costs nothing. When the variable is not set, nothing is loaded beyond the
+top level `autowrapt` package, which has no imports of its own.
 
 ## Example
 
@@ -80,17 +81,34 @@ end.
 
 ## How it works
 
-The `.pth` file is processed by the `site` module while the interpreter
-starts up. Its single line imports `autowrapt.bootstrap` and calls
-`bootstrap()`, but only when `AUTOWRAPT_BOOTSTRAP` is set.
+Two startup files are installed at the top of site-packages, and the `site`
+module processes them while the interpreter starts up.
 
-Because `.pth` files are processed part way through site initialisation,
-before the module search path is complete, `bootstrap()` does not register
-the hooks straight away. It arranges for that to happen as the last step of
-site initialisation instead, after the `sitecustomize` module, or the
-`usercustomize` module when support for that is enabled, has been loaded.
-Only then is wrapt imported and asked to discover the entry points in each
-named group.
+- `autowrapt-init.start` names the entry point `autowrapt:init`. This is
+  the package startup configuration file introduced by
+  [PEP 829](https://peps.python.org/pep-0829/), and it is what Python 3.15
+  and later use. Its presence tells those versions to ignore the import
+  line in the `.pth` file of the same name.
+
+- `autowrapt-init.pth` holds the single line
+  `import autowrapt; autowrapt.init()`. Running code from a `.pth` file is
+  deprecated by the same PEP, but it is the only mechanism available on
+  Python 3.14 and earlier, and it is what those versions use.
+
+Both routes import the `autowrapt` package and call `init()`. The package
+module has no imports of its own, so when `AUTOWRAPT_BOOTSTRAP` is not set
+the cost of autowrapt being installed is loading that one file. When it is
+set, `init()` imports `autowrapt.bootstrap` and calls `bootstrap()`.
+
+On Python 3.14 and earlier, `.pth` files are processed part way through
+site initialisation, before the module search path is complete, so
+`bootstrap()` does not register the hooks straight away. It arranges for
+that to happen as the last step of site initialisation instead, after the
+`sitecustomize` module, or the `usercustomize` module when support for that
+is enabled, has been loaded. Only then is wrapt imported and asked to
+discover the entry points in each named group. On Python 3.15 and later the
+search path is already complete when the entry point runs, but the same
+deferral is used so that every version behaves the same way.
 
 ## Limitations
 
@@ -100,11 +118,11 @@ named group.
 
 - Nothing happens when Python is run with the `-S` option, or in an
   embedded interpreter which does not run the `site` module, since the
-  `.pth` file is never processed.
+  startup files are never processed.
 
 - Installers which do not honour files at the root of a wheel, or tools
-  which build environments without processing `.pth` files, will not
-  trigger autowrapt.
+  which build environments without processing `.pth` and `.start` files,
+  will not trigger autowrapt.
 
 ## Documentation
 

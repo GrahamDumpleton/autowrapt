@@ -1,12 +1,13 @@
 """Functions run at interpreter startup to register the post import hooks
-named in the AUTOWRAPT_BOOTSTRAP environment variable. They are invoked
-from the autowrapt-init.pth file, which is installed at the top of
-site-packages alongside the package.
+named in the AUTOWRAPT_BOOTSTRAP environment variable. This module is
+imported by autowrapt.init(), the entry point named in the startup files
+installed at the top of site-packages, and only once that has found the
+variable set.
 
 Nothing beyond the standard library may be imported at module level here.
-The .pth file imports this module part way through site initialisation,
-when sys.path may not yet be complete, and wrapt itself is only imported
-once registration runs.
+On Python 3.14 and earlier this module is imported part way through site
+initialisation, when sys.path may not yet be complete, and wrapt itself is
+only imported once registration runs.
 """
 
 import os
@@ -82,7 +83,7 @@ _patched = False
 def bootstrap() -> None:
     """Arrange for the post import hooks to be registered as the last step
     of site initialisation, once the module search path is complete. This is
-    what the autowrapt-init.pth file calls.
+    what autowrapt.init() calls when AUTOWRAPT_BOOTSTRAP is set.
     """
 
     global _patched
@@ -92,13 +93,16 @@ def bootstrap() -> None:
 
     _patched = True
 
-    # The .pth file is processed part way through site initialisation, and
-    # other .pth files, possibly including one which makes wrapt importable,
-    # may not have been processed yet. Registration is therefore deferred to
-    # the last thing the site module does, which is loading the sitecustomize
-    # module, or the usercustomize module when support for that is enabled.
-    # Both loaders are wrapped, with the sitecustomize wrapper only acting
-    # when usercustomize support is disabled.
+    # On Python 3.14 and earlier the .pth file is processed part way through
+    # site initialisation, and other .pth files, possibly including one which
+    # makes wrapt importable, may not have been processed yet. Registration
+    # is therefore deferred to the last thing the site module does, which is
+    # loading the sitecustomize module, or the usercustomize module when
+    # support for that is enabled. Both loaders are wrapped, with the
+    # sitecustomize wrapper only acting when usercustomize support is
+    # disabled. On Python 3.15 and later the .start entry point only runs
+    # once every path extension has been applied, so the deferral is not
+    # needed there, but it is kept so that every version behaves the same.
     #
     # wrapt cannot be used for this wrapping, for the same reason it cannot
     # be imported yet, so plain function wrappers are used instead.

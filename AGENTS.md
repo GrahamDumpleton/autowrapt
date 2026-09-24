@@ -9,8 +9,10 @@ in the AUTOWRAPT_BOOTSTRAP environment variable to wrapt, which registers
 each entry point as a post import hook. See README.md for how it is used.
 
 The package uses a src layout: the code lives in src/autowrapt/. The
-autowrapt-init.pth file at the top of the repository is installed at the
-top of site-packages and is what triggers everything at startup.
+autowrapt-init.start and autowrapt-init.pth files at the top of the
+repository are installed at the top of site-packages and are what trigger
+everything at startup: the .start file on Python 3.15 and later, the .pth
+file before that. Both import the autowrapt package and call init().
 
 Tests live in the tests/ directory. See TESTING.md for where tests are,
 how to run them, and conventions for adding new ones. Read it before doing
@@ -23,18 +25,28 @@ files by name from code or documentation that will be committed.
 
 ## Startup constraints
 
-- The .pth file runs at every interpreter startup in any environment where
-  autowrapt is installed. Keep src/autowrapt/__init__.py free of imports,
-  and keep the module level of src/autowrapt/bootstrap.py to the standard
-  library. wrapt must only be imported inside register_bootstrap_functions().
+- The startup files import the autowrapt package and call init() at every
+  interpreter startup in any environment where autowrapt is installed.
+  Keep src/autowrapt/__init__.py free of module level imports, keep init()
+  importing nothing until it has found AUTOWRAPT_BOOTSTRAP set, and keep
+  the module level of src/autowrapt/bootstrap.py to the standard library.
+  wrapt must only be imported inside register_bootstrap_functions(). The
+  tests enforce this.
 
-- The .pth file is processed part way through site initialisation, before
-  sys.path is complete. Hook registration is deferred until the site module
-  has finished by wrapping its sitecustomize and usercustomize loaders. Do
-  not move registration earlier.
+- On Python 3.14 and earlier the .pth file is processed part way through
+  site initialisation, before sys.path is complete. Hook registration is
+  deferred until the site module has finished by wrapping its sitecustomize
+  and usercustomize loaders. Do not move registration earlier on any
+  version: on 3.15 and later the path is complete when the .start entry
+  point runs, but the deferral is kept so that every version behaves the
+  same way.
 
-- The file name prefix autowrapt-init is significant. A future .start file
-  for PEP 829 has to share it exactly, so do not rename the .pth file.
+- The two startup files must keep the same name prefix, autowrapt-init. On
+  Python 3.15 and later a .start file only suppresses the import line of a
+  .pth file with exactly the same prefix, and with different names both
+  would run. The .pth line must stay the plain form
+  `import autowrapt; autowrapt.init()`, so that both files run the same
+  code.
 
 - Documentation for users beyond the README belongs in the wrapt
   documentation, not in this repository.

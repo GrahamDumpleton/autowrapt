@@ -52,12 +52,15 @@ path = "src/autowrapt/__init__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/autowrapt"]
 
-# The .pth file has to land at the top of site-packages, not inside the
-# package, for the site module to process it at interpreter startup. Placing
-# it at the root of the wheel does that on any Python version and layout.
+# The startup files have to land at the top of site-packages, not inside
+# the package, for the site module to process them at interpreter startup.
+# Placing them at the root of the wheel does that on any Python version and
+# layout. The .start file is used on Python 3.15 and later, the .pth file
+# before that, and they must share the same name prefix.
 
 [tool.hatch.build.targets.wheel.force-include]
 "autowrapt-init.pth" = "autowrapt-init.pth"
+"autowrapt-init.start" = "autowrapt-init.start"
 
 [tool.hatch.build.targets.sdist]
 exclude = [

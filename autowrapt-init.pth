@@ -1,1 +1,1 @@
-import os, sys; os.environ.get('AUTOWRAPT_BOOTSTRAP') and __import__('autowrapt.bootstrap') and sys.modules['autowrapt.bootstrap'].bootstrap()
+import autowrapt; autowrapt.init()
