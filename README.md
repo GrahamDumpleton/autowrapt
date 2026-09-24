@@ -126,11 +126,11 @@ deferral is used so that every version behaves the same way.
 
 ## Documentation
 
-The post import hook mechanism autowrapt builds on is described in the
-monkey patching section of the
-[wrapt documentation](https://wrapt.readthedocs.io/). Documentation for
-autowrapt itself is also being added there, since the two are bound up
-together.
+autowrapt is documented in the wrapt documentation, since the two are
+bound up together. The section
+[Applying patches at interpreter startup](https://wrapt.readthedocs.io/en/latest/monkey.html#applying-patches-at-interpreter-startup)
+covers autowrapt itself, and the rest of that monkey patching page
+describes the post import hook mechanism it builds on.
 
 [wrapture](https://github.com/GrahamDumpleton/wrapture), a higher level
 monkey patching, testing and tracing library built on wrapt, uses autowrapt
